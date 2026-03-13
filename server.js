@@ -8,6 +8,9 @@ app.use(express.json());
 const postRoutes = require('./src/routes/postRoutes');
 app.use('/', postRoutes);
 
+const userRoutes = require('./src/routes/userRoutes');
+app.use('/', userRoutes);
+
 db.sequelize.sync().then(() => {
   const PORT = process.env.PORT || 3000;
   app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
