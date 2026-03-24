@@ -11,7 +11,12 @@ module.exports = (sequelize, DataTypes) => {
      * The `models/index` file will call this method automatically.
      */
     static associate(models) {
-      // define association here
+      // User has many Posts
+      User.hasMany(models.post, { foreignKey: 'userId', as: 'posts' });
+      // User has many Comments
+      User.hasMany(models.comment, { foreignKey: 'userId', as: 'comments' });
+      // User has many Likes
+      User.hasMany(models.like, { foreignKey: 'userId', as: 'likes' });
     }
 
     // Instance method to compare password
@@ -43,6 +48,40 @@ module.exports = (sequelize, DataTypes) => {
     },
     otpExpires: {
       type: DataTypes.DATE,
+      allowNull: true
+    },
+    resetPasswordToken: {
+      type: DataTypes.STRING,
+      allowNull: true
+    },
+    resetPasswordExpires: {
+      type: DataTypes.DATE,
+      allowNull: true
+    },
+    role: {
+      type: DataTypes.ENUM('user', 'author', 'admin'),
+      allowNull: false,
+      defaultValue: 'user'
+    },
+    isSuspended: {
+      type: DataTypes.BOOLEAN,
+      allowNull: false,
+      defaultValue: false
+    },
+    bio: {
+      type: DataTypes.TEXT,
+      allowNull: true
+    },
+    avatar: {
+      type: DataTypes.STRING,
+      allowNull: true
+    },
+    website: {
+      type: DataTypes.STRING,
+      allowNull: true
+    },
+    location: {
+      type: DataTypes.STRING,
       allowNull: true
     }
   }, {

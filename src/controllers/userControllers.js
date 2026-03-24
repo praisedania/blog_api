@@ -1,6 +1,7 @@
 const db = require('../../models');
 const { Resend } = require('resend');
 const jwt = require('jsonwebtoken');
+const { generatePasswordResetToken, sendPasswordResetEmail, getResetTokenExpiry } = require('../utils/passwordResetUtils');
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
@@ -31,11 +32,18 @@ const sendOtpEmail = async (to, otp) => {
 };
 
 /***** User Controllers *****/
-exports.signup = async (req, res) => {
+exports.createUser = async (req, res) => {
   try {
-    const { userName, email, password } = req.body;
-    const newUser = await db.User.create({ userName, email, password });
-    return res.status(201).json(newUser);
+    const { userName, email, password, role = 'user' } = req.body;
+
+    const newUser = await db.User.create({ userName, email, password, role });
+    return res.status(201).json({
+      id: newUser.id,
+      userName: newUser.userName,
+      email: newUser.email,
+      role: newUser.role,
+      createdAt: newUser.createdAt
+    });
   } catch (err) {
     return res.status(500).json({ error: err.message });
   }
@@ -43,7 +51,13 @@ exports.signup = async (req, res) => {
 
 exports.signupWithOtp = async (req, res) => {
   try {
-    const { userName, email, password } = req.body;
+    const { userName, email, password, role = 'user' } = req.body;
+
+    // Only admins can create users with roles other than 'user'
+   if (role !== 'user' && (!req.user || req.user.role !== 'admin')) {
+     return res.status(403).json({ message: 'Only admins can assign roles' });
+    }
+
     const otp = generateOtp();
     const otpExpires = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
 
@@ -51,6 +65,7 @@ exports.signupWithOtp = async (req, res) => {
       userName,
       email,
       password,
+      role,
       isVerified: false,
       otpCode: otp,
       otpExpires,
@@ -80,9 +95,8 @@ exports.verifySignupOtp = async (req, res) => {
     if (!user) {
       return res.status(404).json({ message: 'User not found.' });
     }
-
     if (user.isVerified) {
-      return res.status(400).json({ message: 'User already verified.' });
+      return res.status(400).json({ message: 'Email verified.' });
     }
 
     if (!user.otpCode || !user.otpExpires) {
@@ -125,13 +139,14 @@ exports.loginUserWithEmail = async (req, res) => {
     if (!isMatch) {
       return res.status(401).json({ message: 'Invalid credentials.' });
     }
-    const token = jwt.sign({ id: user.id, email: user.email }, process.env.JWT_SECRET, { expiresIn: '1h' });
+    const token = jwt.sign({ id: user.id, email: user.email, role: user.role }, process.env.JWT_SECRET, { expiresIn: '1h' });
     return res.json({
       token,
       user: {
         email: user.email,
         userName: user.userName,
         id: user.id,
+        role: user.role,
         createdAt: user.createdAt,
         updatedAt: user.updatedAt
       }
@@ -158,13 +173,14 @@ exports.loginUserWithUsername = async (req, res) => {
     if (!isMatch) {
       return res.status(401).json({ message: 'Invalid credentials.' });
     }
-    const token = jwt.sign({ id: user.id, userName: user.userName }, process.env.JWT_SECRET, { expiresIn: '1h' });
+    const token = jwt.sign({ id: user.id, userName: user.userName, role: user.role  }, process.env.JWT_SECRET, { expiresIn: '1h' });
     return res.json({
       token,
       user: {
         email: user.email,
         userName: user.userName,
         id: user.id,
+        role: user.role,
         createdAt: user.createdAt,
         updatedAt: user.updatedAt
       }
@@ -198,7 +214,7 @@ exports.getUser= async (req, res) => {
   }
 };
 
-exports.getAllUsers = async (req, res) => {
+exports.getAllUsersBasic = async (req, res) => {
   try {
     const users = await db.User.findAll();
     return res.status(200).json(users);
@@ -255,6 +271,276 @@ exports.deleteUser = async (req, res) => {
       return res.status(404).json({ message: 'User not found.' });
     }
     return res.status(200).json({ message: 'User deleted successfully.' });
+  } catch (error) {
+    return res.status(500).json({ error: error.message });
+  }
+};
+
+/***** Password Reset Controllers *****/
+exports.forgotPassword = async (req, res) => {
+  try {
+    const { email } = req.body;
+
+    if (!email) {
+      return res.status(400).json({ message: 'Email is required.' });
+    }
+
+    const user = await db.User.findOne({ where: { email } });
+
+    if (!user) {
+      // For security, don't reveal if email exists or not
+      return res.status(200).json({
+        message: "A password reset link has been sent."
+      });
+    }
+
+    // Generate reset token
+    const resetToken = generatePasswordResetToken();
+    const resetTokenExpiry = getResetTokenExpiry();
+
+    // Save token to database
+    await user.update({
+      resetPasswordToken: resetToken,
+      resetPasswordExpires: resetTokenExpiry
+    });
+
+    // Build reset link - adjust the URL based on your frontend
+    const resetLink = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/reset-password?token=${resetToken}&email=${email}`;
+
+    // Send email
+    try {
+      await sendPasswordResetEmail(email, resetLink);
+    } catch (mailErr) {
+      console.warn('Failed to send password reset email:', mailErr.message);
+      // Still return success to avoid revealing whether email was sent
+    }
+
+    return res.status(200).json({
+      message: 'A password reset link has been sent.'
+    });
+  } catch (error) {
+    return res.status(500).json({ error: error.message });
+  }
+};
+
+exports.resetPassword = async (req, res) => {
+  try {
+    const { email, token, newPassword, confirmPassword } = req.body;
+
+    if (!email || !token || !newPassword || !confirmPassword) {
+      return res.status(400).json({
+        message: 'Email, token, and new password are required.'
+      });
+    }
+
+    if (newPassword !== confirmPassword) {
+      return res.status(400).json({
+        message: 'Passwords do not match.'
+      });
+    }
+
+    if (newPassword.length < 6) {
+      return res.status(400).json({
+        message: 'Password must be at least 6 characters long.'
+      });
+    }
+
+    const user = await db.User.findOne({ where: { email } });
+
+    if (!user) {
+      return res.status(404).json({ message: 'User not found.' });
+    }
+
+    // Verify token exists and hasn't expired
+    if (!user.resetPasswordToken || !user.resetPasswordExpires) {
+      return res.status(400).json({
+        message: 'No password reset request found. Please request a new password reset.'
+      });
+    }
+
+    if (user.resetPasswordToken !== token) {
+      return res.status(400).json({
+        message: 'Invalid reset token.'
+      });
+    }
+
+    if (new Date() > user.resetPasswordExpires) {
+      return res.status(400).json({
+        message: 'Reset token has expired. Please request a new password reset.'
+      });
+    }
+
+    // Update password and clear reset token
+    await user.update({
+      password: newPassword,
+      resetPasswordToken: null,
+      resetPasswordExpires: null
+    });
+
+    return res.status(200).json({
+      message: 'Password reset successfully. You can now log in with your new password.'
+    });
+  } catch (error) {
+    return res.status(500).json({ error: error.message });
+  }
+};
+
+
+
+/***** Role Management Controllers (Admin Only) *****/
+exports.updateUserRole = async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const { role } = req.body;
+
+    // Validate role
+    const validRoles = ['user', 'author', 'admin'];
+    if (!validRoles.includes(role)) {
+      return res.status(400).json({
+        message: 'Invalid role. Must be one of: user, author, admin'
+      });
+    }
+
+    const user = await db.User.findByPk(userId);
+    if (!user) {
+      return res.status(404).json({ message: 'User not found.' });
+    }
+
+    // Prevent admin from demoting themselves
+    if (userId == req.user.id && role !== 'admin') {
+      return res.status(400).json({
+        message: 'Cannot change your own admin role.'
+      });
+    }
+
+    await user.update({ role });
+
+    return res.status(200).json({
+      message: 'User role updated successfully.',
+      user: {
+        id: user.id,
+        userName: user.userName,
+        email: user.email,
+        role: user.role
+      }
+    });
+  } catch (error) {
+    return res.status(500).json({ error: error.message });
+  }
+};
+
+exports.getAllUsers = async (req, res) => {
+  try {
+    const { page = 1, limit = 10, role } = req.query;
+    const offset = (page - 1) * limit;
+
+    const whereClause = role ? { role } : {};
+
+    const { count, rows: users } = await db.User.findAndCountAll({
+      where: whereClause,
+      attributes: ['id', 'userName', 'email', 'role', 'isVerified', 'createdAt', 'updatedAt'],
+      limit: parseInt(limit),
+      offset: parseInt(offset),
+      order: [['createdAt', 'DESC']]
+    });
+
+    return res.status(200).json({
+      users,
+      pagination: {
+        total: count,
+        page: parseInt(page),
+        limit: parseInt(limit),
+        pages: Math.ceil(count / limit)
+      }
+    });
+  } catch (error) {
+    return res.status(500).json({ error: error.message });
+  }
+};
+
+exports.getUserStats = async (req, res) => {
+  try {
+    const totalUsers = await db.User.count();
+    const verifiedUsers = await db.User.count({ where: { isVerified: true } });
+    const suspendedUsers = await db.User.count({ where: { isSuspended: true } });
+    const roleStats = await db.User.findAll({
+      attributes: [
+        'role',
+        [db.Sequelize.fn('COUNT', db.Sequelize.col('role')), 'count']
+      ],
+      group: ['role']
+    });
+
+    return res.status(200).json({
+      totalUsers,
+      verifiedUsers,
+      suspendedUsers,
+      activeUsers: totalUsers - suspendedUsers,
+      roleBreakdown: roleStats
+    });
+  } catch (error) {
+    return res.status(500).json({ error: error.message });
+  }
+};
+
+/***** User Suspension Management (Admin Only) *****/
+exports.suspendUser = async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const { reason } = req.body;
+
+    const user = await db.User.findByPk(userId);
+    if (!user) {
+      return res.status(404).json({ message: 'User not found.' });
+    }
+
+    // Prevent suspending admins
+    if (user.role === 'admin') {
+      return res.status(400).json({ message: 'Cannot suspend admin users.' });
+    }
+
+    // Prevent self-suspension
+    if (userId == req.user.id) {
+      return res.status(400).json({ message: 'Cannot suspend yourself.' });
+    }
+
+    await user.update({ isSuspended: true });
+
+    return res.status(200).json({
+      message: 'User suspended successfully.',
+      user: {
+        id: user.id,
+        userName: user.userName,
+        email: user.email,
+        isSuspended: user.isSuspended,
+        suspendedReason: reason || null
+      }
+    });
+  } catch (error) {
+    return res.status(500).json({ error: error.message });
+  }
+};
+
+exports.unsuspendUser = async (req, res) => {
+  try {
+    const { userId } = req.params;
+
+    const user = await db.User.findByPk(userId);
+    if (!user) {
+      return res.status(404).json({ message: 'User not found.' });
+    }
+
+    await user.update({ isSuspended: false });
+
+    return res.status(200).json({
+      message: 'User unsuspended successfully.',
+      user: {
+        id: user.id,
+        userName: user.userName,
+        email: user.email,
+        isSuspended: user.isSuspended
+      }
+    });
   } catch (error) {
     return res.status(500).json({ error: error.message });
   }

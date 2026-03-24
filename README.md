@@ -1,14 +1,16 @@
 # Blog App API
 
-A RESTful API for a blog application built with Node.js, Express, and Sequelize ORM. It supports user authentication, OTP verification, and CRUD operations for blog posts.
+A RESTful API for a blog application built with Node.js, Express, and Sequelize ORM. It supports user authentication, OTP verification, CRUD operations for blog posts, as well as profiles, comments, likes, searching, and admin features.
 
 ## Features
 
-- User registration and login (with email or username)
-- OTP-based email verification for signup
+- User registration, login, and profile management
+- OTP-based signup and Password Reset flows
 - JWT-based authentication
 - Create, read, update, and delete blog posts
-- User-specific post management
+- Post Engagement: Add comments and like posts
+- Search & Pagination: Find posts and users seamlessly
+- Admin Roles: User suspension, role assignment, and post moderation
 
 ## Tech Stack
 
@@ -25,20 +27,12 @@ blog_app/
 ├── config/
 │   └── config.js          # Database configuration
 ├── migrations/            # Sequelize migrations
-├── models/                # Sequelize models
-│   ├── index.js
-│   ├── post.js
-│   └── user.js
+├── models/                # Sequelize models (User, Post, Comment, Like)
 ├── seeders/               # Database seeders
 ├── src/
-│   ├── controllers/       # Route controllers
-│   │   ├── postControllers.js
-│   │   └── userControllers.js
-│   ├── middleware/
-│   │   └── auth.js        # JWT authentication middleware
-│   └── routes/            # API routes
-│       ├── postRoutes.js
-│       └── userRoutes.js
+│   ├── controllers/       # Route controllers (auth, profiles, comments, likes, search, admin)
+│   ├── middleware/        # Middlewares (auth, tokenValidator)
+│   └── routes/            # API routes (user, post, comment, like, profile, search)
 ├── package.json
 ├── server.js              # Main application entry point
 └── README.md
@@ -264,6 +258,24 @@ Authorization: Bearer <your_jwt_token>
   }
   ```
 
+### Admin Endpoints (Requires Admin Role)
+- **GET** `/api/admin/users` - List all users
+- **PUT** `/api/admin/users/:userId/role` - Change user role
+- **POST** `/api/admin/users/:userId/suspend` - Suspend a user
+- **POST** `/api/admin/users/:userId/unsuspend` - Unsuspend a user
+- **GET** `/api/admin/stats` - Fetch global app statistics
+
+### Post Engagement Endpoints
+- **POST** `/:postId/like` | **DELETE** `/:postId/like` - Like/Unlike a post
+- **GET** `/:postId/likes` - Get likes for a post
+- **POST** `/:postId/comments` - Add a comment
+- **GET** `/:postId/comments` - Get comments for a post
+- **DELETE** `/comments/:commentId` - Delete a comment
+
+### Search & Profiles Endpoints
+- **GET** `/search?q=query` - Global search for posts and users
+- **GET** `/profile/:userId` - Get user profile details
+
 ## Database Schema
 
 ### Users Table
@@ -272,19 +284,19 @@ Authorization: Bearer <your_jwt_token>
 - `email` (String, Not Null)
 - `password` (String, Not Null, Hashed)
 - `isVerified` (Boolean, Default: false)
-- `otpCode` (String, Nullable)
-- `otpExpires` (Date, Nullable)
-- `createdAt` (Date)
-- `updatedAt` (Date)
+- `role` (String, Default: 'user')
+- `isSuspended` (Boolean, Default: false)
+- Profile details (bio, avatar, reset tokens, etc.)
 
 ### Posts Table
 - `id` (Primary Key, Auto Increment)
-- `title` (String)
-- `content` (Text)
-- `author` (String)
+- `title`, `content`, `author`
 - `userId` (Integer, Foreign Key to Users.id)
-- `createdAt` (Date)
-- `updatedAt` (Date)
+- `isModerated` (Boolean, Default: false)
+
+### Comments & Likes Tables
+- `Comment`: `id`, `content`, `userId`, `postId`
+- `Like`: `id`, `userId`, `postId`
 
 ## Error Handling
 
