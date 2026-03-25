@@ -1,91 +1,322 @@
-# Blog App API v1.0 🚀
+# Blog App API
 
-A robust, secure, and versioned RESTful API for a modern blogging platform. This documentation is tailored for frontend developers to facilitate seamless integration.
+A RESTful API for a blog application built with Node.js, Express, and Sequelize ORM. It supports user authentication, OTP verification, CRUD operations for blog posts, as well as profiles, comments, likes, searching, and admin features.
 
-## 🔗 Base URL
-All requests must be prefixed with:
-`http://localhost:3000/api/v1`
+## Features
 
----
+- User registration, login, and profile management
+- OTP-based signup and Password Reset flows
+- JWT-based authentication
+- Create, read, update, and delete blog posts
+- Post Engagement: Add comments and like posts
+- Search & Pagination: Find posts and users seamlessly
+- Admin Roles: User suspension, role assignment, and post moderation
 
-## 🛠️ Global Architecture
-- **API Versioning**: Current version is `v1`.
-- **Security**: Hardened with `helmet` and custom `cors`.
-- **Performance**: Gzip `compression` enabled for all data transfers.
-- **Data Integrity**: **Joi** schema validation on all POST/PUT/PATCH requests.
-- **Error Handling**: Standardized JSON error response format.
+## Tech Stack
 
----
+- **Backend**: Node.js, Express.js
+- **Database**: MySQL with Sequelize ORM
+- **Authentication**: JWT (JSON Web Tokens)
+- **Password Hashing**: bcrypt
+- **Email Service**: Resend for OTP emails
 
-## 📂 API Reference
+## Project Structure
 
-### 🏷️ Category Management
-Categories are now first-class entities. Every post MUST have a `categoryId`.
-
-| Method | Endpoint | Description | Access |
-| :--- | :--- | :--- | :--- |
-| `GET` | `/categories` | Get all available categories | Public |
-| `POST` | `/categories` | Create a new category | Admin |
-| `PUT` | `/categories/:id` | Update category name | Admin |
-| `DELETE` | `/categories/:id` | Remove a category | Admin |
-
-### 📝 Post Management
-| Method | Endpoint | Description | Access |
-| :--- | :--- | :--- | :--- |
-| `GET` | `/posts` | List all published posts | Public |
-| `GET` | `/posts/:id` | Get individual post details | Public |
-| `POST` | `/posts` | Create post (**req: title, content, categoryId**) | Author |
-| `PUT` | `/posts/:id` | Update post content/status | Author |
-| `DELETE` | `/posts/:id` | Permanently delete post | Author |
-| `GET` | `/posts/admin` | Management view with status filters | Admin |
-
-### 👤 User & Profile
-| Method | Endpoint | Description | Access |
-| :--- | :--- | :--- | :--- |
-| `POST` | `/users/signup-with-otp` | Start registration (OTP sent via email) | Public |
-| `POST` | `/users/signup/verify` | Finalize setup with OTP code | Public |
-| `POST` | `/users/emaillogin` | Standard email login | Public |
-| `GET` | `/profiles/:userId` | Get profile bio & categories | Public |
-| `PUT` | `/profiles/:userId` | Update bio & **categoryIds** array | Owner |
-| `PUT` | `/profiles/:userId/password`| Secure password change | Owner |
-
-### 🔍 Search & Discovery
-| Method | Endpoint | Description |
-| :--- | : :--- | :--- |
-| `GET` | `/search/posts` | Filter by `q`, `categoryId`, or `author` |
-| `GET` | `/search/users` | Find authors by `q` or `categoryId` |
-| `GET` | `/search/trending` | Most liked posts in last 7 days |
-
-### 💬 Social & Engagement
-| Method | Endpoint | Description |
-| :--- | :--- | :--- |
-| `POST` | `/comments` | Add comment to a post |
-| `GET` | `/comments/post/:postId`| Get all comments for a post |
-| `POST` | `/likes/:postId/like` | Like a post (Authentication required) |
-
----
-
-## 🔒 Authentication
-Use **Bearer Token** for all protected endpoints.
-`Authorization: Bearer <your_token>`
-
----
-
-## ⚠️ Input Validation
-All requests must adhere to these Joi validation rules:
-- **Title**: 5-100 characters.
-- **Content**: Minimum 10 characters.
-- **Passwords**: Minimum 8 characters.
-- **Usernames**: 3-30 alphanumeric characters.
-- **CategoryIds**: Must be an array of integers (e.g., `[1, 3]`).
-
----
-
-## 🚦 Error Response Format
-```json
-{
-  "status": "fail",
-  "message": "Detailed error message goes here"
-}
 ```
-*Note: In development mode, a complete stack trace is provided.*
+blog_app/
+├── config/
+│   └── config.js          # Database configuration
+├── migrations/            # Sequelize migrations
+├── models/                # Sequelize models (User, Post, Comment, Like)
+├── seeders/               # Database seeders
+├── src/
+│   ├── controllers/       # Route controllers (auth, profiles, comments, likes, search, admin)
+│   ├── middleware/        # Middlewares (auth, tokenValidator)
+│   └── routes/            # API routes (user, post, comment, like, profile, search)
+├── package.json
+├── server.js              # Main application entry point
+└── README.md
+```
+
+## Setup Instructions
+
+### Prerequisites
+
+- Node.js (v14 or higher)
+- MySQL database
+- npm or yarn
+
+### Installation
+
+1. Clone the repository:
+   ```bash
+   git clone <repository-url>
+   cd blog_app
+   ```
+
+2. Install dependencies:
+   ```bash
+   npm install
+   ```
+
+3. Set up environment variables:
+   Create a `.env` file in the root directory with the following variables:
+   ```
+   PORT=3000
+   JWT_SECRET=your_jwt_secret_key
+   RESEND_API_KEY=your_resend_api_key
+   EMAIL_FROM=noreply@yourdomain.com
+   DATABASE_USERNAME=your_mysql_username
+   DATABASE_PASSWORD=your_mysql_password
+   DATABASE_NAME=blog_app_db
+   DATABASE_HOST=localhost
+   ```
+
+4. Set up the database:
+   - Create a MySQL database named `blog_app_db`
+   - Run migrations:
+     ```bash
+     npx sequelize-cli db:migrate
+     ```
+   - (Optional) Run seeders:
+     ```bash
+     npx sequelize-cli db:seed:all
+     ```
+
+5. Start the development server:
+   ```bash
+   npm run dev
+   ```
+
+The server will start on `http://localhost:3000`.
+
+## API Documentation
+
+### Authentication
+
+Most endpoints require authentication via JWT token. Include the token in the `Authorization` header:
+```
+Authorization: Bearer <your_jwt_token>
+```
+
+### User Endpoints
+
+#### Register User
+- **POST** `/api/users/signup`
+- **Body**:
+  ```json
+  {
+    "userName": "johndoe",
+    "email": "john@example.com",
+    "password": "password123"
+  }
+  ```
+- **Response**: User object
+
+#### Register with OTP Verification
+- **POST** `/api/users/signup-with-otp`
+- **Body**:
+  ```json
+  {
+    "userName": "johndoe",
+    "email": "john@example.com",
+    "password": "password123"
+  }
+  ```
+- **Response**:
+  ```json
+  {
+    "message": "User created. A verification code was sent to your email.",
+    "userId": 1
+  }
+  ```
+
+#### Verify OTP
+- **POST** `/api/users/signup/verify`
+- **Body**:
+  ```json
+  {
+    "email": "john@example.com",
+    "otp": "123456"
+  }
+  ```
+- **Response**:
+  ```json
+  {
+    "message": "User verified successfully."
+  }
+  ```
+
+#### Login with Email
+- **POST** `/api/users/emaillogin`
+- **Body**:
+  ```json
+  {
+    "email": "john@example.com",
+    "password": "password123"
+  }
+  ```
+- **Response**:
+  ```json
+  {
+    "token": "jwt_token_here",
+    "user": {
+      "email": "john@example.com",
+      "userName": "johndoe",
+      "id": 1,
+      "createdAt": "2023-03-16T...",
+      "updatedAt": "2023-03-16T..."
+    }
+  }
+  ```
+
+#### Login with Username
+- **POST** `/api/users/usernamelogin`
+- **Body**:
+  ```json
+  {
+    "userName": "johndoe",
+    "password": "password123"
+  }
+  ```
+- **Response**: Same as email login
+
+#### Get All Users
+- **GET** `/api/users`
+- **Auth**: Required
+- **Response**: Array of user objects
+
+#### Get User by ID
+- **GET** `/api/users/:id`
+- **Auth**: Required
+- **Response**: User object
+
+#### Update User
+- **PUT** `/api/users/:id`
+- **Auth**: Required
+- **Body**: User fields to update
+- **Response**: Updated user object
+
+#### Patch User
+- **PATCH** `/api/users/:id`
+- **Auth**: Required
+- **Body**: Partial user fields
+- **Response**: Updated user object
+
+#### Delete User
+- **DELETE** `/api/users/:id`
+- **Auth**: Required
+- **Response**:
+  ```json
+  {
+    "message": "User deleted successfully."
+  }
+  ```
+
+### Post Endpoints
+
+#### Create Post
+- **POST** `/api/posts`
+- **Auth**: Required
+- **Body**:
+  ```json
+  {
+    "title": "My Blog Post",
+    "content": "This is the content of my blog post."
+  }
+  ```
+- **Response**: Created post object
+
+#### Get All Posts
+- **GET** `/api/posts`
+- **Response**: Array of post objects
+
+#### Get Post by ID
+- **GET** `/api/posts/:id`
+- **Auth**: Required
+- **Response**: Post object
+
+#### Update Post
+- **PUT** `/api/posts/:id`
+- **Auth**: Required (user must own the post)
+- **Body**: Post fields to update
+- **Response**: Updated post object
+
+#### Patch Post
+- **PATCH** `/api/posts/:id`
+- **Auth**: Required (user must own the post)
+- **Body**: Partial post fields
+- **Response**: Updated post object
+
+#### Delete Post
+- **DELETE** `/api/posts/:id`
+- **Auth**: Required (user must own the post)
+- **Response**:
+  ```json
+  {
+    "message": "Post deleted successfully."
+  }
+  ```
+
+### Admin Endpoints (Requires Admin Role)
+- **GET** `/api/admin/users` - List all users
+- **PUT** `/api/admin/users/:userId/role` - Change user role
+- **POST** `/api/admin/users/:userId/suspend` - Suspend a user
+- **POST** `/api/admin/users/:userId/unsuspend` - Unsuspend a user
+- **GET** `/api/admin/stats` - Fetch global app statistics
+
+### Post Engagement Endpoints
+- **POST** `/:postId/like` | **DELETE** `/:postId/like` - Like/Unlike a post
+- **GET** `/:postId/likes` - Get likes for a post
+- **POST** `/:postId/comments` - Add a comment
+- **GET** `/:postId/comments` - Get comments for a post
+- **DELETE** `/comments/:commentId` - Delete a comment
+
+### Search & Profiles Endpoints
+- **GET** `/search?q=query` - Global search for posts and users
+- **GET** `/profile/:userId` - Get user profile details
+
+## Database Schema
+
+### Users Table
+- `id` (Primary Key, Auto Increment)
+- `userName` (String, Not Null)
+- `email` (String, Not Null)
+- `password` (String, Not Null, Hashed)
+- `isVerified` (Boolean, Default: false)
+- `role` (String, Default: 'user')
+- `isSuspended` (Boolean, Default: false)
+- Profile details (bio, avatar, reset tokens, etc.)
+
+### Posts Table
+- `id` (Primary Key, Auto Increment)
+- `title`, `content`, `author`
+- `userId` (Integer, Foreign Key to Users.id)
+- `isModerated` (Boolean, Default: false)
+
+### Comments & Likes Tables
+- `Comment`: `id`, `content`, `userId`, `postId`
+- `Like`: `id`, `userId`, `postId`
+
+## Error Handling
+
+The API returns appropriate HTTP status codes and error messages in JSON format:
+- `200`: Success
+- `201`: Created
+- `400`: Bad Request
+- `401`: Unauthorized
+- `403`: Forbidden
+- `404`: Not Found
+- `500`: Internal Server Error
+
+## Contributing
+
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Run tests (if any)
+5. Submit a pull request
+
+## License
+
+This project is licensed under the ISC License.
