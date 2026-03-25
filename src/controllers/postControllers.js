@@ -5,9 +5,18 @@ const userController = require('../controllers/userControllers');
 /***** Post Controllers *****/
 exports.createPost = async (req, res) => {
   try {
-    const { title, content, status = 'published' } = req.body;
+    const { title, content, categoryId, status = 'published' } = req.body;
     const author = req.user.userName || req.user.email;
     const userId = req.user.id;
+
+    if (!categoryId) {
+      return res.status(400).json({ message: 'Category is required for all posts.' });
+    }
+
+    const categoryExists = await db.Category.findByPk(categoryId);
+    if (!categoryExists) {
+      return res.status(404).json({ message: 'Specified category does not exist.' });
+    }
 
     // Validate status for different roles
     const validStatuses = req.user.role === 'admin' ? ['draft', 'pending', 'published', 'rejected'] :
@@ -20,7 +29,7 @@ exports.createPost = async (req, res) => {
       });
     }
 
-    const newPost = await db.post.create({ title, content, author, userId, status });
+    const newPost = await db.post.create({ title, content, author, categoryId, userId, status });
     return res.status(201).json(newPost);
   } catch (err) {
     return res.status(500).json({ error: err.message });
@@ -52,6 +61,11 @@ exports.getAllPosts = async (req, res) => {
 
     const posts = await db.post.findAll({
       where: whereClause,
+      include: [{
+        model: db.Category,
+        as: 'category',
+        attributes: ['id', 'name']
+      }],
       order: [['createdAt', 'DESC']]
     });
 
@@ -63,7 +77,13 @@ exports.getAllPosts = async (req, res) => {
 
 exports.getPostById = async (req, res) => {
   try {
-    const post = await db.post.findByPk(req.params.id);
+    const post = await db.post.findByPk(req.params.id, {
+      include: [{
+        model: db.Category,
+        as: 'category',
+        attributes: ['id', 'name']
+      }]
+    });
     if (!post) {
       return res.status(404).json({ message: 'Post not found.' });
     }
@@ -167,20 +187,28 @@ exports.deletePost = async (req, res) => {
 /***** Admin Post Management *****/
 exports.getAllPostsAdmin = async (req, res) => {
   try {
-    const { page = 1, limit = 10, status, author } = req.query;
+    const { page = 1, limit = 10, status, author, categoryId } = req.query;
     const offset = (page - 1) * limit;
 
     const whereClause = {};
     if (status) whereClause.status = status;
     if (author) whereClause.author = { [db.Sequelize.Op.like]: `%${author}%` };
+    if (categoryId) whereClause.categoryId = categoryId;
 
     const { count, rows: posts } = await db.post.findAndCountAll({
       where: whereClause,
-      include: [{
-        model: db.User,
-        as: 'user',
-        attributes: ['userName', 'email', 'role']
-      }],
+      include: [
+        {
+          model: db.User,
+          as: 'user',
+          attributes: ['userName', 'email', 'role']
+        },
+        {
+          model: db.Category,
+          as: 'category',
+          attributes: ['id', 'name']
+        }
+      ],
       limit: parseInt(limit),
       offset: parseInt(offset),
       order: [['createdAt', 'DESC']]

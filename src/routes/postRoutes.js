@@ -1,19 +1,18 @@
-const express = require('express');
+const validate = require('../middleware/validate');
+const postSchemas = require('../utils/validation/postSchemas');
 const router = express.Router();
-const postController = require('../controllers/postControllers');
-const { authenticateToken, requireAdmin, requireAuthor } = require('../middleware/auth');
 
-router.post('/api/posts', authenticateToken, requireAuthor, postController.createPost);
-router.get('/api/posts', postController.getAllPosts);
-router.get('/api/posts/:id', authenticateToken, postController.getPostById);
-router.put('/api/posts/:id', authenticateToken, postController.updatePost);
-router.patch('/api/posts/:id', authenticateToken, postController.patchPost);
-router.delete('/api/posts/:id', authenticateToken, postController.deletePost);
+router.post('/', authenticateToken, requireAuthor, validate(postSchemas.createPost), postController.createPost);
+router.get('/', postController.getAllPosts);
+router.get('/:id', authenticateToken, postController.getPostById);
+router.put('/:id', authenticateToken, requireAuthor, validate(postSchemas.updatePost), postController.updatePost);
+router.patch('/:id', authenticateToken, postController.patchPost);
+router.delete('/:id', authenticateToken, postController.deletePost);
 
 // Admin-only post management routes
-router.get('/api/admin/posts', authenticateToken, requireAdmin, postController.getAllPostsAdmin);
-router.post('/api/admin/posts/:id/approve', authenticateToken, requireAdmin, postController.approvePost);
-router.post('/api/admin/posts/:id/reject', authenticateToken, requireAdmin, postController.rejectPost);
-router.get('/api/admin/posts/stats', authenticateToken, requireAdmin, postController.getPostStats);
+router.get('/admin', authenticateToken, requireAdmin, postController.getAllPostsAdmin);
+router.post('/admin/:id/approve', authenticateToken, requireAdmin, postController.approvePost);
+router.post('/admin/:id/reject', authenticateToken, requireAdmin, postController.rejectPost);
+router.get('/admin/stats', authenticateToken, requireAdmin, postController.getPostStats);
 
 module.exports = router;

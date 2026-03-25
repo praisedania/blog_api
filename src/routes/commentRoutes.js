@@ -4,13 +4,13 @@ const commentController = require('../controllers/commentControllers');
 const { authenticateToken, requireAdmin, requireUser } = require('../middleware/auth');
 
 // Comment routes
-router.post('/api/comments', authenticateToken, requireUser, commentController.createComment);
-router.get('/api/posts/:postId/comments', commentController.getCommentsByPost);
-router.put('/api/comments/:id', authenticateToken, requireUser, commentController.updateComment);
-router.delete('/api/comments/:id', authenticateToken, requireUser, commentController.deleteComment);
+router.post('/', authenticateToken, requireUser, commentController.createComment);
+router.get('/post/:postId', commentController.getCommentsByPost);
+router.put('/:id', authenticateToken, requireUser, commentController.updateComment);
+router.delete('/:id', authenticateToken, requireUser, commentController.deleteComment);
 
 // Admin comment management routes
-router.get('/api/admin/comments', authenticateToken, requireAdmin, commentController.getAllComments);
-router.get('/api/admin/comments/stats', authenticateToken, requireAdmin, commentController.getCommentStats);
+router.get('/admin', authenticateToken, requireAdmin, commentController.getAllComments);
+router.get('/admin/stats', authenticateToken, requireAdmin, commentController.getCommentStats);
 
 module.exports = router;

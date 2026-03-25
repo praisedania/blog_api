@@ -7,7 +7,13 @@ const getUserProfile = async (req, res) => {
     const { userId } = req.params;
 
     const user = await db.User.findByPk(userId, {
-      attributes: ['id', 'username', 'email', 'role', 'bio', 'avatar', 'website', 'location', 'createdAt', 'updatedAt']
+      attributes: ['id', 'userName', 'email', 'role', 'bio', 'avatar', 'website', 'location', 'createdAt', 'updatedAt'],
+      include: [{
+        model: db.Category,
+        as: 'preferredCategories',
+        attributes: ['id', 'name'],
+        through: { attributes: [] }
+      }]
     });
 
     if (!user) {
@@ -48,26 +54,39 @@ const updateUserProfile = async (req, res) => {
       return res.status(403).json({ message: 'You can only update your own profile' });
     }
 
-    const { bio, avatar, website, location } = req.body;
+    const { bio, avatar, website, location, categoryIds } = req.body;
 
     const user = await db.User.findByPk(userId);
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
     }
 
+    if (user.role === 'author' && categoryIds) {
+      if (!Array.isArray(categoryIds)) {
+        return res.status(400).json({ message: 'categoryIds must be an array' });
+      }
+      const categories = await db.Category.findAll({
+        where: { id: categoryIds }
+      });
+      if (categories.length !== categoryIds.length) {
+        return res.status(400).json({ message: 'One or more category IDs are invalid.' });
+      }
+      await user.setPreferredCategories(categories);
+    }
+
     // Update profile fields
     await user.update({
-      bio: bio || user.bio,
-      avatar: avatar || user.avatar,
-      website: website || user.website,
-      location: location || user.location
+      bio: bio !== undefined ? bio : user.bio,
+      avatar: avatar !== undefined ? avatar : user.avatar,
+      website: website !== undefined ? website : user.website,
+      location: location !== undefined ? location : user.location
     });
 
     res.json({
       message: 'Profile updated successfully',
       user: {
         id: user.id,
-        username: user.username,
+        userName: user.userName,
         email: user.email,
         role: user.role,
         bio: user.bio,
@@ -145,7 +164,7 @@ const getUserPosts = async (req, res) => {
       include: [{
         model: db.User,
         as: 'user',
-        attributes: ['id', 'username', 'email']
+        attributes: ['id', 'userName', 'email']
       }],
       limit: parseInt(limit),
       offset: parseInt(offset),
@@ -155,7 +174,7 @@ const getUserPosts = async (req, res) => {
     res.json({
       user: {
         id: user.id,
-        username: user.username
+        userName: user.userName
       },
       total: count,
       page: parseInt(page),

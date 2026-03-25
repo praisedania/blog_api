@@ -17,6 +17,12 @@ module.exports = (sequelize, DataTypes) => {
       User.hasMany(models.comment, { foreignKey: 'userId', as: 'comments' });
       // User has many Likes
       User.hasMany(models.like, { foreignKey: 'userId', as: 'likes' });
+      // User belongs to many Categories (for authors)
+      User.belongsToMany(models.Category, { 
+        through: 'UserCategories',
+        foreignKey: 'userId',
+        as: 'preferredCategories'
+      });
     }
 
     // Instance method to compare password
@@ -57,6 +63,10 @@ module.exports = (sequelize, DataTypes) => {
     resetPasswordExpires: {
       type: DataTypes.DATE,
       allowNull: true
+    },
+    categories: {
+      type: DataTypes.JSON,
+      defaultValue: []
     },
     role: {
       type: DataTypes.ENUM('user', 'author', 'admin'),

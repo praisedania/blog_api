@@ -1,29 +1,32 @@
 const express = require('express');
+const express = require('express');
 const router = express.Router();
 const userController = require('../controllers/userControllers');
 const { authenticateToken, requireAdmin } = require('../middleware/auth');
+const validate = require('../middleware/validate');
+const userSchemas = require('../utils/validation/userSchemas');
 
-router.post('/api/users/signup', userController.createUser);
-router.post('/api/users/signup-with-otp', userController.signupWithOtp);
-router.post('/api/users/signup/verify', userController.verifySignupOtp);
-router.post('/api/users/emaillogin', userController.loginUserWithEmail);
-router.post('/api/users/usernamelogin', userController.loginUserWithUsername);
-router.post('/api/users/forgot-password', userController.forgotPassword);
-router.post('/api/users/reset-password', userController.resetPassword);
+router.post('/signup', validate(userSchemas.signup), userController.createUser);
+router.post('/signup-with-otp', validate(userSchemas.signup), userController.signupWithOtp);
+router.post('/signup/verify', userController.verifySignupOtp);
+router.post('/emaillogin', validate(userSchemas.login), userController.loginUserWithEmail);
+router.post('/usernamelogin', validate(userSchemas.login), userController.loginUserWithUsername);
+router.post('/forgot-password', userController.forgotPassword);
+router.post('/reset-password', userController.resetPassword);
 
 // Protected routes - require authentication
-router.get('/api/users', authenticateToken, userController.getAllUsersBasic);
-router.get('/api/users/:id', authenticateToken, userController.getUserById);
-router.put('/api/users/:id', authenticateToken, userController.updateUser);
-router.patch('/api/users/:id', authenticateToken, userController.patchUser);
-router.delete('/api/users/:id', authenticateToken, requireAdmin, userController.deleteUser);
+router.get('/', authenticateToken, userController.getAllUsersBasic);
+router.get('/:id', authenticateToken, userController.getUserById);
+router.put('/:id', authenticateToken, userController.updateUser);
+router.patch('/:id', authenticateToken, userController.patchUser);
+router.delete('/:id', authenticateToken, requireAdmin, userController.deleteUser);
 
 // Admin-only routes
-router.post('/api/admin/users', authenticateToken, requireAdmin, userController.createUser);
-router.get('/api/admin/users', authenticateToken, requireAdmin, userController.getAllUsers);
-router.put('/api/admin/users/:userId/role', authenticateToken, requireAdmin, userController.updateUserRole);
-router.post('/api/admin/users/:userId/suspend', authenticateToken, requireAdmin, userController.suspendUser);
-router.post('/api/admin/users/:userId/unsuspend', authenticateToken, requireAdmin, userController.unsuspendUser);
-router.get('/api/admin/stats', authenticateToken, requireAdmin, userController.getUserStats);
+router.post('/admin', authenticateToken, requireAdmin, validate(userSchemas.signup), userController.createUser);
+router.get('/admin', authenticateToken, requireAdmin, userController.getAllUsers);
+router.put('/admin/:userId/role', authenticateToken, requireAdmin, userController.updateUserRole);
+router.post('/admin/:userId/suspend', authenticateToken, requireAdmin, userController.suspendUser);
+router.post('/admin/:userId/unsuspend', authenticateToken, requireAdmin, userController.unsuspendUser);
+router.get('/admin/stats', authenticateToken, requireAdmin, userController.getUserStats);
 
 module.exports = router;

@@ -16,6 +16,8 @@ module.exports = (sequelize, DataTypes) => {
       post.hasMany(models.comment, { foreignKey: 'postId', as: 'comments' });
       // Post has many Likes
       post.hasMany(models.like, { foreignKey: 'postId', as: 'likes' });
+      // Post belongs to Category
+      post.belongsTo(models.Category, { foreignKey: 'categoryId', as: 'category' });
     }
   }
   post.init({
@@ -23,6 +25,10 @@ module.exports = (sequelize, DataTypes) => {
     content: DataTypes.TEXT,
     author: DataTypes.STRING,
     userId: DataTypes.INTEGER,
+    categoryId: {
+      type: DataTypes.INTEGER,
+      allowNull: true
+    },
     status: {
       type: DataTypes.ENUM('draft', 'pending', 'published', 'rejected'),
       allowNull: false,

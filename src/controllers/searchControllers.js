@@ -4,34 +4,59 @@ const { Op } = require('sequelize');
 // Search posts
 const searchPosts = async (req, res) => {
   try {
-    const { q, page = 1, limit = 10 } = req.query;
-
-    if (!q || q.trim().length === 0) {
-      return res.status(400).json({ message: 'Search query is required' });
-    }
+    const { q, page = 1, limit = 10, categoryId, author, status } = req.query;
 
     const offset = (page - 1) * limit;
+
+    const whereConditions = [];
+
+    // Base condition for regular search
+    let searchStatus = 'published';
+    if (status && ['published', 'draft', 'pending', 'rejected'].includes(status)) {
+      searchStatus = status;
+    }
+    whereConditions.push({ status: searchStatus });
+
+    // Optional text query
+    if (q && q.trim().length > 0) {
+      whereConditions.push({
+        [Op.or]: [
+          { title: { [Op.like]: `%${q}%` } },
+          { content: { [Op.like]: `%${q}%` } }
+        ]
+      });
+    }
+
+    if (categoryId) {
+      whereConditions.push({ categoryId: categoryId });
+    }
+
+    if (author) {
+      whereConditions.push({ author: { [Op.like]: `%${author}%` } });
+    }
+
+    // You must provide at least one search mechanic
+    if (whereConditions.length === 1 && !categoryId && !author) {
+       return res.status(400).json({ message: 'At least one search parameter (q, categoryId, or author) is required' });
+    }
 
     // Search in title and content
     const { count, rows: posts } = await db.post.findAndCountAll({
       where: {
-        [Op.and]: [
-          {
-            status: 'published' // Only search published posts
-          },
-          {
-            [Op.or]: [
-              { title: { [Op.like]: `%${q}%` } },
-              { content: { [Op.like]: `%${q}%` } }
-            ]
-          }
-        ]
+        [Op.and]: whereConditions
       },
-      include: [{
-        model: db.User,
-        as: 'user',
-        attributes: ['id', 'username', 'email']
-      }],
+      include: [
+        {
+          model: db.User,
+          as: 'user',
+          attributes: ['id', 'userName', 'email']
+        },
+        {
+          model: db.Category,
+          as: 'category',
+          attributes: ['id', 'name']
+        }
+      ],
       limit: parseInt(limit),
       offset: parseInt(offset),
       order: [['createdAt', 'DESC']]
@@ -54,31 +79,45 @@ const searchPosts = async (req, res) => {
 // Search users
 const searchUsers = async (req, res) => {
   try {
-    const { q, page = 1, limit = 10 } = req.query;
+    const { q, page = 1, limit = 10, categoryId } = req.query;
 
-    if (!q || q.trim().length === 0) {
-      return res.status(400).json({ message: 'Search query is required' });
+    if (!q && !categoryId) {
+      return res.status(400).json({ message: 'Search query or categoryId is required' });
     }
 
     const offset = (page - 1) * limit;
 
-    // Search in username and email
+    const userConditions = [{ isSuspended: false }];
+    
+    if (q && q.trim().length > 0) {
+      userConditions.push({
+        [Op.or]: [
+          { userName: { [Op.like]: `%${q}%` } },
+          { email: { [Op.like]: `%${q}%` } }
+        ]
+      });
+    }
+
+    if (categoryId) {
+      userConditions.push({
+        '$preferredCategories.id$': categoryId
+      });
+    }
+
     const { count, rows: users } = await db.User.findAndCountAll({
       where: {
-        [Op.and]: [
-          { isSuspended: false }, // Only search active users
-          {
-            [Op.or]: [
-              { username: { [Op.like]: `%${q}%` } },
-              { email: { [Op.like]: `%${q}%` } }
-            ]
-          }
-        ]
+        [Op.and]: userConditions
       },
-      attributes: ['id', 'username', 'email', 'role', 'bio', 'avatar', 'website', 'location', 'createdAt'],
+      attributes: ['id', 'userName', 'email', 'role', 'bio', 'avatar', 'website', 'location', 'createdAt'],
+      include: [{
+        model: db.Category,
+        as: 'preferredCategories',
+        attributes: ['id', 'name'],
+        through: { attributes: [] }
+      }],
       limit: parseInt(limit),
       offset: parseInt(offset),
-      order: [['username', 'ASC']]
+      order: [['userName', 'ASC']]
     });
 
     res.json({
@@ -115,7 +154,7 @@ const getTrendingPosts = async (req, res) => {
         {
           model: db.User,
           as: 'user',
-          attributes: ['id', 'username', 'email']
+          attributes: ['id', 'userName', 'email']
         },
         {
           model: db.like,
@@ -144,6 +183,9 @@ const getTrendingPosts = async (req, res) => {
     res.status(500).json({ message: 'Internal server error' });
   }
 };
+
+// Redundant local getCategories removed in favor of categoryControllers.js
+
 
 module.exports = {
   searchPosts,

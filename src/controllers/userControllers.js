@@ -34,14 +34,33 @@ const sendOtpEmail = async (to, otp) => {
 /***** User Controllers *****/
 exports.createUser = async (req, res) => {
   try {
-    const { userName, email, password, role = 'user' } = req.body;
+    const { userName, email, password, role = 'user', categoryIds } = req.body;
+
+    let categories = [];
+    if (role === 'author' && categoryIds) {
+      if (!Array.isArray(categoryIds)) {
+        return res.status(400).json({ message: 'categoryIds must be an array of IDs' });
+      }
+      categories = await db.Category.findAll({
+        where: { id: categoryIds }
+      });
+      if (categories.length !== categoryIds.length) {
+        return res.status(400).json({ message: 'One or more category IDs are invalid.' });
+      }
+    }
 
     const newUser = await db.User.create({ userName, email, password, role });
+    
+    if (categories.length > 0) {
+      await newUser.setPreferredCategories(categories);
+    }
+
     return res.status(201).json({
       id: newUser.id,
       userName: newUser.userName,
       email: newUser.email,
       role: newUser.role,
+      categories: categories.map(c => ({ id: c.id, name: c.name })),
       createdAt: newUser.createdAt
     });
   } catch (err) {
@@ -51,11 +70,24 @@ exports.createUser = async (req, res) => {
 
 exports.signupWithOtp = async (req, res) => {
   try {
-    const { userName, email, password, role = 'user' } = req.body;
+    const { userName, email, password, role = 'user', categoryIds } = req.body;
 
     // Only admins can create users with roles other than 'user'
-   if (role !== 'user' && (!req.user || req.user.role !== 'admin')) {
-     return res.status(403).json({ message: 'Only admins can assign roles' });
+    if (role !== 'user' && (!req.user || req.user.role !== 'admin')) {
+      return res.status(403).json({ message: 'Only admins can assign roles' });
+    }
+
+    let categories = [];
+    if (role === 'author' && categoryIds) {
+      if (!Array.isArray(categoryIds)) {
+        return res.status(400).json({ message: 'categoryIds must be an array of IDs' });
+      }
+      categories = await db.Category.findAll({
+        where: { id: categoryIds }
+      });
+      if (categories.length !== categoryIds.length) {
+        return res.status(400).json({ message: 'One or more category IDs are invalid.' });
+      }
     }
 
     const otp = generateOtp();
@@ -70,6 +102,10 @@ exports.signupWithOtp = async (req, res) => {
       otpCode: otp,
       otpExpires,
     });
+
+    if (categories.length > 0) {
+      await newUser.setPreferredCategories(categories);
+    }
 
     // Send OTP email (best-effort; errors are logged but do not fail signup)
     try {
