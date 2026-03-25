@@ -92,6 +92,20 @@ The server will start on `http://localhost:3000`.
 
 ## API Documentation
 
+### Base URL
+All API requests must be prefixed with:
+`http://localhost:3000/api/v1`
+
+---
+
+### Global Features
+- **Security**: Hardened with `helmet` and custom `cors` (dynamic origins).
+- **Performance**: Gzip `compression` enabled for all data transfers.
+- **Data Integrity**: **Joi** schema validation on all POST/PUT/PATCH requests.
+- **Error Handling**: Standardized JSON error response format.
+
+---
+
 ### Authentication
 
 Most endpoints require authentication via JWT token. Include the token in the `Authorization` header:
@@ -102,25 +116,29 @@ Authorization: Bearer <your_jwt_token>
 ### User Endpoints
 
 #### Register User
-- **POST** `/api/users/signup`
+- **POST** `/api/v1/users/signup`
 - **Body**:
   ```json
   {
     "userName": "johndoe",
     "email": "john@example.com",
-    "password": "password123"
+    "password": "password123",
+    "role": "user",
+    "categoryIds": [1, 2] 
   }
   ```
 - **Response**: User object
 
 #### Register with OTP Verification
-- **POST** `/api/users/signup-with-otp`
+- **POST** `/api/v1/users/signup-with-otp`
 - **Body**:
   ```json
   {
     "userName": "johndoe",
     "email": "john@example.com",
-    "password": "password123"
+    "password": "password123",
+    "role": "author",
+    "categoryIds": [1, 3]
   }
   ```
 - **Response**:
@@ -132,7 +150,7 @@ Authorization: Bearer <your_jwt_token>
   ```
 
 #### Verify OTP
-- **POST** `/api/users/signup/verify`
+- **POST** `/api/v1/users/signup/verify`
 - **Body**:
   ```json
   {
@@ -148,7 +166,7 @@ Authorization: Bearer <your_jwt_token>
   ```
 
 #### Login with Email
-- **POST** `/api/users/emaillogin`
+- **POST** `/api/v1/users/emaillogin`
 - **Body**:
   ```json
   {
@@ -160,121 +178,62 @@ Authorization: Bearer <your_jwt_token>
   ```json
   {
     "token": "jwt_token_here",
-    "user": {
-      "email": "john@example.com",
-      "userName": "johndoe",
-      "id": 1,
-      "createdAt": "2023-03-16T...",
-      "updatedAt": "2023-03-16T..."
-    }
+    "user": { "email": "john@example.com", "userName": "johndoe", "id": 1 }
   }
   ```
 
 #### Login with Username
-- **POST** `/api/users/usernamelogin`
-- **Body**:
-  ```json
-  {
-    "userName": "johndoe",
-    "password": "password123"
-  }
-  ```
+- **POST** `/api/v1/users/usernamelogin`
 - **Response**: Same as email login
 
-#### Get All Users
-- **GET** `/api/users`
+#### User Management
+- **GET** `/api/v1/users` | **GET** `/api/v1/users/:id` | **PUT** `/api/v1/users/:id` | **DELETE** `/api/v1/users/:id`
 - **Auth**: Required
-- **Response**: Array of user objects
-
-#### Get User by ID
-- **GET** `/api/users/:id`
-- **Auth**: Required
-- **Response**: User object
-
-#### Update User
-- **PUT** `/api/users/:id`
-- **Auth**: Required
-- **Body**: User fields to update
-- **Response**: Updated user object
-
-#### Patch User
-- **PATCH** `/api/users/:id`
-- **Auth**: Required
-- **Body**: Partial user fields
-- **Response**: Updated user object
-
-#### Delete User
-- **DELETE** `/api/users/:id`
-- **Auth**: Required
-- **Response**:
-  ```json
-  {
-    "message": "User deleted successfully."
-  }
-  ```
 
 ### Post Endpoints
 
 #### Create Post
-- **POST** `/api/posts`
-- **Auth**: Required
+- **POST** `/api/v1/posts`
+- **Auth**: Required (Author role)
 - **Body**:
   ```json
   {
     "title": "My Blog Post",
-    "content": "This is the content of my blog post."
+    "content": "This is the content of my blog post.",
+    "categoryId": 1
   }
   ```
 - **Response**: Created post object
 
-#### Get All Posts
-- **GET** `/api/posts`
-- **Response**: Array of post objects
-
-#### Get Post by ID
-- **GET** `/api/posts/:id`
-- **Auth**: Required
-- **Response**: Post object
-
-#### Update Post
-- **PUT** `/api/posts/:id`
-- **Auth**: Required (user must own the post)
-- **Body**: Post fields to update
-- **Response**: Updated post object
-
-#### Patch Post
-- **PATCH** `/api/posts/:id`
-- **Auth**: Required (user must own the post)
-- **Body**: Partial post fields
-- **Response**: Updated post object
-
-#### Delete Post
-- **DELETE** `/api/posts/:id`
-- **Auth**: Required (user must own the post)
-- **Response**:
-  ```json
-  {
-    "message": "Post deleted successfully."
-  }
-  ```
+#### Post Lifecycle
+- **GET** `/api/v1/posts` | **GET** `/api/v1/posts/:id` | **PUT** `/api/v1/posts/:id` | **DELETE** `/api/v1/posts/:id`
+- **Note**: `PUT` requires `categoryId`. Use `PATCH` for partial updates.
 
 ### Admin Endpoints (Requires Admin Role)
-- **GET** `/api/admin/users` - List all users
-- **PUT** `/api/admin/users/:userId/role` - Change user role
-- **POST** `/api/admin/users/:userId/suspend` - Suspend a user
-- **POST** `/api/admin/users/:userId/unsuspend` - Unsuspend a user
-- **GET** `/api/admin/stats` - Fetch global app statistics
+- **GET** `/api/v1/users/admin` - List all users
+- **PUT** `/api/v1/users/admin/:userId/role` - Change user role
+- **POST** `/api/v1/users/admin/:userId/suspend` - Suspend a user
+- **GET** `/api/v1/posts/admin` - Manage posts
+- **GET** `/api/v1/users/admin/stats` - Global statistics
 
 ### Post Engagement Endpoints
-- **POST** `/:postId/like` | **DELETE** `/:postId/like` - Like/Unlike a post
-- **GET** `/:postId/likes` - Get likes for a post
-- **POST** `/:postId/comments` - Add a comment
-- **GET** `/:postId/comments` - Get comments for a post
-- **DELETE** `/comments/:commentId` - Delete a comment
+- **POST** `/api/v1/likes/:postId/like` | **DELETE** `/api/v1/likes/:postId/like` - Like/Unlike
+- **GET** `/api/v1/likes/:postId/likes` - Get likes
+- **POST** `/api/v1/comments` - Add comment
+- **GET** `/api/v1/comments/post/:postId` - Get comments
+- **DELETE** `/api/v1/comments/:id` - Delete comment
 
 ### Search & Profiles Endpoints
-- **GET** `/search?q=query` - Global search for posts and users
-- **GET** `/profile/:userId` - Get user profile details
+- **GET** `/api/v1/search/posts?q=query` - Filter by `q`, `categoryId`, `author`
+- **GET** `/api/v1/search/users?q=query` - Filter by `q`, `categoryId`
+- **GET** `/api/v1/profiles/:userId` - Get profile & categories
+- **PUT** `/api/v1/profiles/:userId` - Update bio & **categoryIds**
+
+### Category Management
+- **GET** `/api/v1/categories` - List categories (Public)
+- **POST** `/api/v1/categories` - Create category (Admin)
+- **PUT** `/api/v1/categories/:id` - Update category (Admin)
+- **DELETE** `/api/v1/categories/:id` - Delete category (Admin)
 
 ## Database Schema
 
@@ -303,11 +262,19 @@ Authorization: Bearer <your_jwt_token>
 The API returns appropriate HTTP status codes and error messages in JSON format:
 - `200`: Success
 - `201`: Created
-- `400`: Bad Request
+- `400`: Bad Request (Check `status: "fail"` for validation errors)
 - `401`: Unauthorized
 - `403`: Forbidden
 - `404`: Not Found
 - `500`: Internal Server Error
+
+## Input Validation (Joi)
+All requests must adhere to these rules:
+- **Title**: 5-100 characters.
+- **Content**: Minimum 10 characters.
+- **Passwords**: Minimum 8 characters.
+- **Usernames**: 3-30 alphanumeric characters.
+- **categoryIds**: Array of integers (e.g., `[1, 5]`).
 
 ## Contributing
 
