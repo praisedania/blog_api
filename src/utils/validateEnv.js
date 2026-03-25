@@ -1,16 +1,28 @@
 const requiredEnvVars = [
-  'JWT_SECRET',
-  'DB_USER',
-  'DB_PASSWORD',
-  'DB_NAME',
-  'DB_HOST'
+  'JWT_SECRET'
 ];
 
 const validateEnv = () => {
-  const missing = requiredEnvVars.filter(envVar => !process.env[envVar]);
+  const isProduction = process.env.NODE_ENV === 'production';
   
-  if (missing.length > 0) {
-    console.error('CRITICAL: Missing required environment variables:', missing.join(', '));
+  // In production, we typically use DATABASE_URL (Render default)
+  if (isProduction && !process.env.DATABASE_URL) {
+    console.error('CRITICAL: Missing DATABASE_URL in production environment.');
+    process.exit(1);
+  }
+
+  // In non-production, we expect individual DB variables
+  if (!isProduction) {
+    const dbVars = ['DB_USER', 'DB_PASSWORD', 'DB_NAME', 'DB_HOST'];
+    const missing = dbVars.filter(envVar => !process.env[envVar]);
+    if (missing.length > 0) {
+      console.warn('WARNING: Missing database environment variables:', missing.join(', '));
+    }
+  }
+
+  const missingGeneral = requiredEnvVars.filter(envVar => !process.env[envVar]);
+  if (missingGeneral.length > 0) {
+    console.error('CRITICAL: Missing required environment variables:', missingGeneral.join(', '));
     process.exit(1);
   }
   
@@ -20,3 +32,4 @@ const validateEnv = () => {
 };
 
 module.exports = validateEnv;
+

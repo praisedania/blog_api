@@ -15,7 +15,7 @@ A RESTful API for a blog application built with Node.js, Express, and Sequelize 
 ## Tech Stack
 
 - **Backend**: Node.js, Express.js
-- **Database**: MySQL with Sequelize ORM
+- **Database**: PostgreSQL with Sequelize ORM
 - **Authentication**: JWT (JSON Web Tokens)
 - **Password Hashing**: bcrypt
 - **Email Service**: Resend for OTP emails
@@ -73,14 +73,10 @@ blog_app/
    ```
 
 4. Set up the database:
-   - Create a MySQL database named `blog_app_db`
+   - Create a PostgreSQL database named `blog_app_db`
    - Run migrations:
      ```bash
      npx sequelize-cli db:migrate
-     ```
-   - (Optional) Run seeders:
-     ```bash
-     npx sequelize-cli db:seed:all
      ```
 
 5. Start the development server:
