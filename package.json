@@ -6,8 +6,8 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "dev": "nodemon server.js",
-    "build": "npx sequelize-cli db:migrate",
-    "start": "node server.js"
+    "build": "esbuild server.js --bundle --platform=node --packages=external --outfile=dist/server.js && npx sequelize-cli db:migrate",
+    "start": "node dist/server.js"
   },
   "keywords": [],
   "author": "",
@@ -29,6 +29,7 @@
     "sequelize": "^6.37.7"
   },
   "devDependencies": {
+    "esbuild": "^0.27.4",
     "nodemon": "^3.1.14",
     "sequelize-cli": "^6.6.5"
   }

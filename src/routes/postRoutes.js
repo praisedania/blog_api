@@ -2,6 +2,8 @@ const express = require('express');
 const validate = require('../middleware/validate');
 const postSchemas = require('../utils/validation/postSchemas');
 const router = express.Router();
+const { authenticateToken, requireAuthor, requireAdmin } = require('../middleware/auth');
+const postController = require('../controllers/postControllers');
 
 router.post('/', authenticateToken, requireAuthor, validate(postSchemas.createPost), postController.createPost);
 router.get('/', postController.getAllPosts);

@@ -51,7 +51,7 @@ app.use('/api/v1/categories', categoryRoutes);
 const errorHandler = require('./src/middleware/errorHandler');
 
 // Fallback for 404
-app.all('*', (req, res, next) => {
+app.all(/.*/, (req, res, next) => {
   const AppError = require('./src/utils/appError');
   next(new AppError(`Can't find ${req.originalUrl} on this server!`, 404));
 });
