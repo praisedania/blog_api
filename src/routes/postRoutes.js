@@ -1,3 +1,4 @@
+const express = require('express');
 const validate = require('../middleware/validate');
 const postSchemas = require('../utils/validation/postSchemas');
 const router = express.Router();
