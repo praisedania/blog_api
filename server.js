@@ -9,6 +9,24 @@ const cors = require('cors');
 const compression = require('compression');
 const app = express();
 
+
+
+app.get('/', (req, res) => {
+  res.status(200).json({
+    status: 'success',
+    message: 'Welcome to the Blog API'
+  });
+});
+
+app.get('/health', (req, res) => {
+  res.status(200).json({
+    status: 'success',
+    message: 'Server is healthy',
+    timestamp: new Date().toISOString(),
+    uptime: process.uptime()
+  });
+});
+
 // Security and Performance Middleware
 app.use(helmet());
 app.use(compression());
@@ -33,6 +51,8 @@ app.use(cors({
 
 app.use(express.json());
 
+
+
 const postRoutes = require('./src/routes/postRoutes');
 app.use('/api/v1/posts', postRoutes);
 const commentRoutes = require('./src/routes/commentRoutes');
@@ -48,21 +68,7 @@ app.use('/api/v1/profiles', profileRoutes);
 const categoryRoutes = require('./src/routes/categoryRoutes');
 app.use('/api/v1/categories', categoryRoutes);
 
-app.get('/', (req, res) => {
-  res.status(200).json({
-    status: 'success',
-    message: 'Welcome to the Blog API'
-  });
-});
 
-app.get('/health', (req, res) => {
-  res.status(200).json({
-    status: 'success',
-    message: 'Server is healthy',
-    timestamp: new Date().toISOString(),
-    uptime: process.uptime()
-  });
-});
 
 const errorHandler = require('./src/middleware/errorHandler');
 
