@@ -48,10 +48,26 @@ app.use('/api/v1/profiles', profileRoutes);
 const categoryRoutes = require('./src/routes/categoryRoutes');
 app.use('/api/v1/categories', categoryRoutes);
 
+app.get('/', (req, res) => {
+  res.status(200).json({
+    status: 'success',
+    message: 'Welcome to the Blog API'
+  });
+});
+
+app.get('/health', (req, res) => {
+  res.status(200).json({
+    status: 'success',
+    message: 'Server is healthy',
+    timestamp: new Date().toISOString(),
+    uptime: process.uptime()
+  });
+});
+
 const errorHandler = require('./src/middleware/errorHandler');
 
 // Fallback for 404
-app.all(/.*/, (req, res, next) => {
+app.use((req, res, next) => {
   const AppError = require('./src/utils/appError');
   next(new AppError(`Can't find ${req.originalUrl} on this server!`, 404));
 });
