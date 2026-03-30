@@ -8,8 +8,7 @@ const userSchemas = require('../utils/validation/userSchemas');
 router.post('/signup', validate(userSchemas.signup), userController.createUser);
 router.post('/signup-with-otp', validate(userSchemas.signup), userController.signupWithOtp);
 router.post('/signup/verify', userController.verifySignupOtp);
-router.post('/emaillogin', validate(userSchemas.login), userController.loginUserWithEmail);
-router.post('/usernamelogin', validate(userSchemas.login), userController.loginUserWithUsername);
+router.post('/login', validate(userSchemas.login), userController.loginUser);
 router.post('/forgot-password', userController.forgotPassword);
 router.post('/reset-password', userController.resetPassword);
 

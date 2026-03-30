@@ -89,8 +89,12 @@ The server will start on `http://localhost:3000`.
 ## API Documentation
 
 ### Base URL
-All API requests must be prefixed with:
-`http://localhost:3000/api/v1`
+
+> [!IMPORTANT]
+> All API requests **MUST** be prefixed with:
+> `http://localhost:3000/api/v1`
+>
+> If you omit the `/v1`, the server will return a 404 error.
 
 ---
 
@@ -161,12 +165,19 @@ Authorization: Bearer <your_jwt_token>
   }
   ```
 
-#### Login with Email
-- **POST** `/api/v1/users/emaillogin`
-- **Body**:
+#### Login
+- **POST** `/api/v1/users/login`
+- **Body** (Either `email` or `userName` is required):
   ```json
   {
     "email": "john@example.com",
+    "password": "password123"
+  }
+  ```
+  OR
+  ```json
+  {
+    "userName": "johndoe",
     "password": "password123"
   }
   ```
@@ -174,13 +185,9 @@ Authorization: Bearer <your_jwt_token>
   ```json
   {
     "token": "jwt_token_here",
-    "user": { "email": "john@example.com", "userName": "johndoe", "id": 1 }
+    "user": { "id": 1, "userName": "johndoe", "email": "john@example.com", "role": "user" }
   }
   ```
-
-#### Login with Username
-- **POST** `/api/v1/users/usernamelogin`
-- **Response**: Same as email login
 
 #### User Management
 - **GET** `/api/v1/users` | **GET** `/api/v1/users/:id` | **PUT** `/api/v1/users/:id` | **DELETE** `/api/v1/users/:id`

@@ -158,58 +158,39 @@ exports.verifySignupOtp = async (req, res) => {
   }
 };
 
-exports.loginUserWithEmail = async (req, res) => {
+exports.loginUser = async (req, res) => {
   try {
-    const { email, password } = req.body;
+    const { email, userName, password } = req.body;
+    
+    // Find user by email or userName
     const user = await db.User.findOne({
       where: {
         [db.Sequelize.Op.or]: [
-          { email: email }
-        ]
+          email ? { email: email } : null,
+          userName ? { userName: userName } : null
+        ].filter(Boolean)
       }
     });
-    if (!user) {
-      return res.status(404).json({ message: 'User not found.' });
-    }
-    const isMatch = await user.comparePassword(password);
-    if (!isMatch) {
-      return res.status(401).json({ message: 'Invalid credentials.' });
-    }
-    const token = jwt.sign({ id: user.id, email: user.email, role: user.role }, process.env.JWT_SECRET, { expiresIn: '1h' });
-    return res.json({
-      token,
-      user: {
-        email: user.email,
-        userName: user.userName,
-        id: user.id,
-        role: user.role,
-        createdAt: user.createdAt,
-        updatedAt: user.updatedAt
-      }
-    });
-  } catch (error) {
-    return res.status(500).json({ error: error.message });
-  }
-};
 
-exports.loginUserWithUsername = async (req, res) => {
-  try {
-    const { userName, password } = req.body;
-    const user = await db.User.findOne({
-      where: {
-        [db.Sequelize.Op.or]: [
-          { userName: userName }
-        ]
-      }
-    });
     if (!user) {
       return res.status(404).json({ message: 'User not found.' });
     }
+
     const isMatch = await user.comparePassword(password);
     if (!isMatch) {
       return res.status(401).json({ message: 'Invalid credentials.' });
     }
-    const token = jwt.sign({ id: user.id, userName: user.userName, role: user.role  }, process.env.JWT_SECRET, { expiresIn: '1h' });
+
+    // Create a payload for the JWT
+    const payload = { 
+      id: user.id, 
+      email: user.email, 
+      userName: user.userName, 
+      role: user.role 
+    };
+
+    const token = jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '1h' });
+
     return res.json({
       token,
       user: {
