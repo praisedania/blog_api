@@ -21,7 +21,7 @@ router.post('/admin/:userId/suspend', authenticateToken, requireAdmin, userContr
 router.post('/admin/:userId/unsuspend', authenticateToken, requireAdmin, userController.unsuspendUser);
 
 // Protected routes - require authentication
-router.post('/become-author', authenticateToken, userController.upgradeToAuthor);
+router.post('/upgrade', authenticateToken, userController.upgradeToAuthor);
 router.get('/', authenticateToken, userController.getAllUsersBasic);
 router.get('/:id', authenticateToken, userController.getUserById);
 router.put('/:id', authenticateToken, userController.updateUser);
