@@ -404,6 +404,60 @@ exports.resetPassword = async (req, res) => {
 
 
 
+exports.upgradeToAuthor = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { categoryIds } = req.body;
+
+    const user = await db.User.findByPk(userId);
+    
+    if (!user) {
+      return res.status(404).json({ message: 'User not found.' });
+    }
+
+    if (user.role === 'admin') {
+      return res.status(400).json({ message: 'Admin users cannot change their role via this endpoint.' });
+    }
+
+    if (user.role === 'author') {
+      return res.status(400).json({ message: 'User is already an author.' });
+    }
+
+    let categories = [];
+    if (categoryIds) {
+      if (!Array.isArray(categoryIds)) {
+        return res.status(400).json({ message: 'categoryIds must be an array of IDs' });
+      }
+      categories = await db.Category.findAll({
+        where: { id: categoryIds }
+      });
+      if (categories.length !== categoryIds.length) {
+        return res.status(400).json({ message: 'One or more category IDs are invalid.' });
+      }
+    }
+
+    await user.update({ role: 'author' });
+
+    if (categories.length > 0) {
+      await user.setPreferredCategories(categories);
+    }
+
+    return res.status(200).json({
+      message: 'Successfully upgraded to author.',
+      user: {
+        id: user.id,
+        userName: user.userName,
+        email: user.email,
+        role: user.role,
+        categories: categories.map(c => ({ id: c.id, name: c.name }))
+      }
+    });
+
+  } catch (error) {
+    return res.status(500).json({ error: error.message });
+  }
+};
+
 /***** Role Management Controllers (Admin Only) *****/
 exports.updateUserRole = async (req, res) => {
   try {
