@@ -193,6 +193,18 @@ Authorization: Bearer <your_jwt_token>
 - **GET** `/api/v1/users` | **GET** `/api/v1/users/:id` | **PUT** `/api/v1/users/:id` | **DELETE** `/api/v1/users/:id`
 - **Auth**: Required
 
+#### Upgrade Role
+- **POST** `/api/v1/users/upgrade`
+- **Auth**: Required
+- **Description**: Allows an authenticated user to instantly upgrade their account role to `author`.
+- **Body** (Optional, to set preferred categories):
+  ```json
+  {
+    "categoryIds": [1, 2, 3]
+  }
+  ```
+- **Response**: Upgraded user object with success message
+
 ### Post Endpoints
 
 #### Create Post
